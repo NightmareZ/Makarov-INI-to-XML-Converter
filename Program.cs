@@ -1,4 +1,28 @@
-﻿using System;
+﻿/*
+Makarov-INI-to-XML-Converter
+
+Copyright (c) 2012 Michael Makarov, <http://nightmarez.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +33,9 @@ namespace IniToXml
 {
 	public sealed class Program
 	{
+		/// <summary>
+		/// Read program arguments (input and output filenames).
+		/// </summary>
 		private static Tuple<string, string> ReadArgs(string[] args)
 		{
 			if (args == null || args.Length != 2)
@@ -32,11 +59,22 @@ namespace IniToXml
 			if (files == null)
 				Environment.Exit(1);
 
+			// Read input file and remove empty lines.
 			var lines = File
 				.ReadAllLines(files.Item1, Encoding.Default)
 				.Where(s => !string.IsNullOrWhiteSpace(s));
 
 			string currSection = string.Empty;
+			// Dictionary (
+			//    section name,
+			//    pair (
+			//        list of pairs (
+			//            item name,
+			//            list of comments for item
+			//        ),
+			//        list of comments for section
+			//    )
+			// )
 			var dict = new Dictionary<string, Tuple<List<Tuple<string, List<string>>>, List<string>>>
 			{
 				{
@@ -46,6 +84,7 @@ namespace IniToXml
 			};
 			var comments = new List<string>();
 
+			// Parse input lines and fill dictionary.
 			foreach (string line in lines)
 			{
 				if (line.StartsWith(";"))
@@ -67,6 +106,7 @@ namespace IniToXml
 				}
 			}
 
+			// Remove default (nameless) section if they are empty.
 			if (dict[string.Empty].Item1.Count == 0)
 				dict.Remove(string.Empty);
 
