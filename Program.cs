@@ -114,26 +114,29 @@ namespace IniToXml
             XmlElement root = doc.CreateElement("root");
             foreach (KeyValuePair<string, Tuple<List<Tuple<string, List<string>>>, List<string>>> kvp in dict)
             {
-                foreach (string sectCommentName in kvp.Value.Item2)
-                    root.AppendChild(doc.CreateComment(sectCommentName));
+                foreach (string sectCommentText in kvp.Value.Item2)
+                    root.AppendChild(doc.CreateComment(sectCommentText));
 
-                XmlElement sect = doc.CreateElement("section");
-                XmlAttribute nameAttrib = doc.CreateAttribute("name");
-                nameAttrib.Value = kvp.Key;
-                sect.Attributes.Append(nameAttrib);
+                XmlElement sectNode = doc.CreateElement("section");
+                XmlAttribute sectNameAttrib = doc.CreateAttribute("name");
+                sectNameAttrib.Value = kvp.Key;
+                sectNode.Attributes.Append(sectNameAttrib);
 
                 foreach (Tuple<string, List<string>> item in kvp.Value.Item1)
                 {
-                    foreach (string commentName in item.Item2)
-                        sect.AppendChild(doc.CreateComment(commentName));
+                    foreach (string itemCommentText in item.Item2)
+                        sectNode.AppendChild(doc.CreateComment(itemCommentText));
 
                     string[] pair = item.Item1.Split(new[] { "=" }, StringSplitOptions.RemoveEmptyEntries);
-                    XmlElement node = doc.CreateElement(pair[0].Trim());
-                    node.InnerText = pair[1].Trim();
-                    sect.AppendChild(node);
+                    XmlElement itemNode = doc.CreateElement("item");
+                    XmlAttribute itemNameAttrib = doc.CreateAttribute("name");
+                    itemNameAttrib.Value = pair[0].Trim();
+                    itemNode.Attributes.Append(itemNameAttrib);
+                    itemNode.InnerText = pair[1].Trim();
+                    sectNode.AppendChild(itemNode);
                 }
 
-                root.AppendChild(sect);
+                root.AppendChild(sectNode);
             }
             doc.AppendChild(root);
             doc.Save(files.Item2);
