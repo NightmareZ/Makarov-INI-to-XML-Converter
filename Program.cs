@@ -69,17 +69,20 @@ namespace IniToXml
             //    section name,
             //    pair (
             //        list of pairs (
-            //            item name,
+            //            pair (
+            //                item name,
+            //                item value
+            //            ),
             //            list of comments for item
             //        ),
             //        list of comments for section
             //    )
             // )
-            var dict = new Dictionary<string, Tuple<List<Tuple<string, List<string>>>, List<string>>>
+            var dict = new Dictionary<string, Tuple<List<Tuple<Tuple<string, string>, List<string>>>, List<string>>>
             {
                 {
-                    currSection, new Tuple<List<Tuple<string, List<string>>>, List<string>>(
-                        new List<Tuple<string, List<string>>>(), new List<string>())
+                    currSection, new Tuple<List<Tuple<Tuple<string, string>, List<string>>>, List<string>>(
+                        new List<Tuple<Tuple<string, string>, List<string>>>(), new List<string>())
                 }
             };
             var comments = new List<string>();
@@ -95,13 +98,16 @@ namespace IniToXml
                 {
                     currSection = line.Substring(1, line.Length - 2);
                     if (!dict.ContainsKey(currSection))
-                        dict.Add(currSection, new Tuple<List<Tuple<string, List<string>>>, List<string>>(
-                            new List<Tuple<string, List<string>>>(), comments));
+                        dict.Add(currSection, new Tuple<List<Tuple<Tuple<string, string>, List<string>>>, List<string>>(
+                            new List<Tuple<Tuple<string, string>, List<string>>>(), comments));
                     comments = new List<string>();
                 }
                 else
                 {
-                    dict[currSection].Item1.Add(new Tuple<string, List<string>>(line, comments));
+                    string[] pair = line.Split(new[] {"="}, StringSplitOptions.RemoveEmptyEntries);
+                    dict[currSection].Item1.Add(new Tuple<Tuple<string, string>, List<string>>(
+                        new Tuple<string, string>(pair[0].Trim(), pair[1].Trim()), 
+                        comments));
                     comments = new List<string>();
                 }
             }
@@ -112,7 +118,7 @@ namespace IniToXml
 
             var doc = new XmlDocument();
             XmlElement root = doc.CreateElement("root");
-            foreach (KeyValuePair<string, Tuple<List<Tuple<string, List<string>>>, List<string>>> kvp in dict)
+            foreach (KeyValuePair<string, Tuple<List<Tuple<Tuple<string, string>, List<string>>>, List<string>>> kvp in dict)
             {
                 foreach (string sectCommentText in kvp.Value.Item2)
                     root.AppendChild(doc.CreateComment(sectCommentText));
@@ -122,18 +128,54 @@ namespace IniToXml
                 sectNameAttrib.Value = kvp.Key;
                 sectNode.Attributes.Append(sectNameAttrib);
 
-                foreach (Tuple<string, List<string>> item in kvp.Value.Item1)
-                {
-                    foreach (string itemCommentText in item.Item2)
-                        sectNode.AppendChild(doc.CreateComment(itemCommentText));
+                var createdItemsArrays = new List<string>();
 
-                    string[] pair = item.Item1.Split(new[] { "=" }, StringSplitOptions.RemoveEmptyEntries);
-                    XmlElement itemNode = doc.CreateElement("item");
-                    XmlAttribute itemNameAttrib = doc.CreateAttribute("name");
-                    itemNameAttrib.Value = pair[0].Trim();
-                    itemNode.Attributes.Append(itemNameAttrib);
-                    itemNode.InnerText = pair[1].Trim();
-                    sectNode.AppendChild(itemNode);
+                foreach (Tuple<Tuple<string, string>, List<string>> item in kvp.Value.Item1)
+                {
+                    if (item.Item1.Item1.EndsWith("[]"))
+                    {
+                        // Output array.
+
+                        if (!createdItemsArrays.Contains(item.Item1.Item1))
+                        {
+                            string arrayName = item.Item1.Item1.Substring(0, item.Item1.Item1.Length - 2);
+                            XmlElement arrayNode = doc.CreateElement("array");
+                            XmlAttribute arrayNameAttrib = doc.CreateAttribute("name");
+                            arrayNameAttrib.Value = arrayName;
+                            arrayNode.Attributes.Append(arrayNameAttrib);
+
+                            var arrayItems = from x in kvp.Value.Item1
+                                             where x.Item1.Item1.Substring(0, x.Item1.Item1.Length - 2) == arrayName
+                                             select x;
+
+                            foreach (Tuple<Tuple<string, string>, List<string>> arrayItem in arrayItems)
+                            {
+                                foreach (string itemCommentText in arrayItem.Item2)
+                                    arrayNode.AppendChild(doc.CreateComment(itemCommentText));
+
+                                XmlElement itemNode = doc.CreateElement("item");
+                                itemNode.InnerText = arrayItem.Item1.Item2;
+                                arrayNode.AppendChild(itemNode);
+                            }
+
+                            sectNode.AppendChild(arrayNode);
+                            createdItemsArrays.Add(item.Item1.Item1);
+                        }
+                    }
+                    else
+                    {
+                        // Output single item.
+
+                        foreach (string itemCommentText in item.Item2)
+                            sectNode.AppendChild(doc.CreateComment(itemCommentText));
+
+                        XmlElement itemNode = doc.CreateElement("item");
+                        XmlAttribute itemNameAttrib = doc.CreateAttribute("name");
+                        itemNameAttrib.Value = item.Item1.Item1;
+                        itemNode.Attributes.Append(itemNameAttrib);
+                        itemNode.InnerText = item.Item1.Item2;
+                        sectNode.AppendChild(itemNode);
+                    }
                 }
 
                 root.AppendChild(sectNode);
