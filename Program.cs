@@ -62,6 +62,7 @@ namespace IniToXml
             // Read input file and remove empty lines.
             var lines = File
                 .ReadAllLines(files.Item1, Encoding.Default)
+                .Select(s => s.Trim())
                 .Where(s => !string.IsNullOrWhiteSpace(s));
 
             string currSection = string.Empty;
@@ -104,9 +105,9 @@ namespace IniToXml
                 }
                 else
                 {
-                    string[] pair = line.Split(new[] {"="}, StringSplitOptions.RemoveEmptyEntries);
+                    string[] pair = line.Split(new[] { "=" }, StringSplitOptions.RemoveEmptyEntries);
                     dict[currSection].Item1.Add(new Tuple<Tuple<string, string>, List<string>>(
-                        new Tuple<string, string>(pair[0].Trim(), pair[1].Trim()), 
+                        new Tuple<string, string>(pair[0].Trim(), pair[1].Trim()),
                         comments));
                     comments = new List<string>();
                 }
